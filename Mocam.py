@@ -128,8 +128,14 @@ class NewActiveCamera(bpy.types.Operator):
     
 # properties    
         
+class TargetProperties(bpy.types.PropertyGroup):
+    key = StringProperty(name = "Object Key", default = "")
+    index = IntProperty(name = "Index", default = 0)
+    
 class MocamProperties(bpy.types.PropertyGroup):
-    active = BoolProperty(name = "Active", default = False) 
+    active = BoolProperty(name = "Active", default = False)
+    targets = CollectionProperty(name = "Targets", type = TargetProperties)    
+    
     
 def get_camera_name_items(self, context):
     camera_names = get_camera_names()
