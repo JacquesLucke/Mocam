@@ -30,7 +30,11 @@ from bpy.props import *
 
 def is_camera_active(camera):
     return camera.data.mocam.active
+def set_camera_active(camera):
+    camera.data.mocam.active = True
 
+def get_camera_names():
+    return [camera.name for camera in get_cameras()]
 def get_cameras():
     return [object for object in bpy.context.scene.objects if object.type == "CAMERA"]
 
@@ -43,15 +47,59 @@ class MocamPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
+        scene = context.scene
         
+        cameras = get_cameras()
+        camera_amount = len(cameras)
+        display_camera = None
+        
+        if camera_amount == 0:
+            layout.operator("mocam.new_active_camera", "New Mocam")
+        elif camera_amount == 1:
+            display_camera = cameras[0]
+        else:
+            layout.prop(scene.mocam, "selected_camera_name", text = "Display")
+            display_camera = scene.objects.get(scene.mocam.selected_camera_name)
+            
+     
+# operators     
+        
+class NewActiveCamera(bpy.types.Operator):
+    bl_idname = "mocam.new_active_camera"
+    bl_label = "New Mocam"
+    bl_description = ""
+    bl_options = {"REGISTER"}
+    
+    @classmethod
+    def poll(cls, context):
+        return context.mode == "OBJECT"
+    
+    def execute(self, context):
+        bpy.ops.object.camera_add()
+        set_camera_active(context.active_object)
+        return {"FINISHED"}
+                
+    
+# properties    
         
 class MocamProperties(bpy.types.PropertyGroup):
-    active = BoolProperty(name = "Active", default = False)       
+    active = BoolProperty(name = "Active", default = False) 
+    
+def get_camera_name_items(self, context):
+    camera_names = get_camera_names()
+    items = []
+    for name in camera_names:
+        items.append((name, name, ""))
+    return items          
+    
+class MocamSceneProperties(bpy.types.PropertyGroup):
+    selected_camera_name = EnumProperty(name = "Camera Name", items = get_camera_name_items)   
         
         
 def register():
     bpy.utils.register_module(__name__)
     bpy.types.Camera.mocam = PointerProperty(name = "Mocam", type = MocamProperties)
+    bpy.types.Scene.mocam = PointerProperty(name = "Mocam", type = MocamSceneProperties)
 
 def unregister():
     bpy.utils.unregister_module(__name__)
