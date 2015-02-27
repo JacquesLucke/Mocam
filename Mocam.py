@@ -61,6 +61,15 @@ class MocamPanel(bpy.types.Panel):
             layout.prop(scene.mocam, "selected_camera_name", text = "Display")
             display_camera = scene.objects.get(scene.mocam.selected_camera_name)
             
+        if not display_camera:
+            return
+        
+        camera = display_camera
+        camera_data = camera.data
+        mocam = camera_data.mocam
+        
+        layout.prop(mocam, "active", text = "Is Camera Active")
+            
      
 # operators     
         
