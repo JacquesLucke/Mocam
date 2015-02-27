@@ -38,6 +38,43 @@ def get_camera_names():
 def get_cameras():
     return [object for object in bpy.context.scene.objects if object.type == "CAMERA"]
 
+
+class ObjectPropertyHelper:
+    helper_object_name = "Mocam Helper"
+    
+    def get_new_key(self, name = "key"):
+        object = self.get_helper_object()
+        constraint = object.constraints.new(name = name, type = "CHILD_OF")
+        constraint.influence = 0
+        return constraint.name
+    
+    def set_object(self, key):
+        object = self.get_helper_object()
+        constraint = object.constraints.get(key)
+        if constraint is None:
+            self.get_new_key(name = key)
+            constraint = object.constraints.get(key)
+        return constraint.target
+    
+    def get_object(self, key):
+        object = self.get_helper_object()
+        constraint = object.constraints.get(key)
+        if constraint is None:
+            return None
+        return constraint.target
+        
+    def get_helper_object(self):
+        object = bpy.data.objects.get(self.helper_object_name)
+        if not object:
+            object = self.create_helper_object()
+        return object
+    
+    def create_helper_object(self):
+        object = bpy.data.objects.new(self.helper_object_name, None)
+        object.use_fake_user = True
+        return object
+
+
 class MocamPanel(bpy.types.Panel):
     bl_idname = "MocamPanel"
     bl_label = "Mocam"
