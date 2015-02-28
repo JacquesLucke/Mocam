@@ -27,6 +27,7 @@ Naming convention:
 
 import bpy
 from bpy.props import *
+from operator import attrgetter
 
 def get_selected_camera():
     cameras = get_cameras()
@@ -51,22 +52,48 @@ def get_cameras():
 class Mocam:
     def __init__(self, camera):
         self.camera = camera
+        self.props = camera.data.mocam
         
     def add_target(self, object):
-        item = self.camera.data.mocam.targets.add()
+        item = self.props.targets.add()
         item.index = 0
         item.key = OPH.get_new_key(default_object = object)
         
-    @property
-    def active(self):
-        return self.camera.data.mocam.active
-    @active.setter
-    def active(self, active):
-        self.camera.data.mocam.active = active
+    def get_targets(self):
+        return TargetList(self.props.targets)
         
     @property
-    def props(self):
-        return self.camera.data.mocam
+    def active(self):
+        return self.props.active
+    @active.setter
+    def active(self, active):
+        self.props.active = active
+        
+    @property
+    def properties(self):
+        return self.props
+    
+    
+class TargetList:
+    def __init__(self, target_items):
+        self.target_items = target_items
+        self.targets = [target for target in self.get_all_targets() if target.object]
+        
+    def get_all_targets(self):
+        targets = []
+        for item in self.target_items:
+            targets.append(Target(item))
+        targets.sort(key = attrgetter("index"))
+        return targets   
+    
+    def __getitem__(self, key):
+        return self.targets[key] 
+    
+    
+class Target:
+    def __init__(self, target_item):
+        self.object = OPH.get_object(target_item.key)
+        self.index = target_item.index    
 
 
 class ObjectPropertyHelper:
@@ -133,7 +160,13 @@ class MocamPanel(bpy.types.Panel):
         
         mocam = Mocam(camera)
         
-        layout.prop(mocam.props, "active", text = "Is Camera Active")
+        layout.prop(mocam.properties, "active", text = "Is Camera Active")
+        
+        targets = mocam.get_targets()
+        col = layout.column(align = True)
+        for target in targets:
+            row = col.row(align = True)
+            row.label(target.object.name)
         
         if mocam.active:
             layout.operator("mocam.add_targets")
