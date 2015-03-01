@@ -104,6 +104,15 @@ class Mocam:
         for item in self.props.targets:
             if item.index == index:
                 return Target(item)
+            
+    def remove_target_with_index(self, index):
+        prop_index = -1
+        for item in self.props.targets:
+            if item.index == index:
+                prop_index = item.index
+                break
+        self.props.targets.remove(prop_index)
+        self.set_correct_indices()
         
     @property
     def active(self):
@@ -173,7 +182,10 @@ class TargetList:
         return targets   
     
     def __getitem__(self, key):
-        return self.targets[key] 
+        return self.targets[key]
+    
+    def __len__(self):
+        return len(self.targets)
     
     
 class Target:
@@ -215,13 +227,19 @@ class MocamPanel(bpy.types.Panel):
         for target in targets:
             row = col.row(align = True)
             if scene.mocam.enable_renaming:
-                row.prop(target.object, "name", text = "")
+                subrow = row.row(align = True)
+                operator = subrow.operator("mocam.goto_index", text = "", icon = "EYEDROPPER")
+                operator.index = target.index
+                subrow.prop(target.object, "name", text = "")
             else:
                 operator = row.operator("mocam.goto_index", text = target.object.name)
                 operator.index = target.index
+                
+            operator = row.operator("mocam.remove_target", text = "", icon = "X")
+            operator.index = target.index
         
         if mocam.active:
-            layout.operator("mocam.add_targets")
+            layout.operator("mocam.add_targets", text = "Add Targets from Selection", icon = "PLUS")
             
         layout.prop(scene.mocam, "enable_renaming")
             
@@ -259,7 +277,7 @@ class AddSelectedObjectsAsTargets(bpy.types.Operator):
         mocam = get_selected_mocam()
         if mocam:
             for object in context.selected_objects:
-                if object != camera:
+                if object != mocam.camera:
                     mocam.add_target(object)
         return {"FINISHED"}
     
@@ -286,6 +304,24 @@ class GotoIndex(bpy.types.Operator):
                 context.scene.objects.active = target.object
         return {"FINISHED"}
             
+            
+class RemoveTarget(bpy.types.Operator):
+    bl_idname = "mocam.remove_target"
+    bl_label = "Remove Target"
+    bl_description = ""
+    bl_options = {"REGISTER"}
+    
+    index = IntProperty(name = "Index", default = 0)
+    
+    @classmethod
+    def poll(cls, context):
+        return True
+    
+    def execute(self, context):
+        mocam = get_selected_mocam()
+        if mocam:
+            mocam.remove_target_with_index(self.index)
+        return {"FINISHED"}            
                         
     
 # properties    
