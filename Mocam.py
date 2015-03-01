@@ -231,6 +231,9 @@ class MocamPanel(bpy.types.Panel):
                 subrow = row.row(align = True)
                 operator = subrow.operator("mocam.goto_index", text = "", icon = "EYEDROPPER")
                 operator.index = target.index
+                if target.object.type == "FONT":
+                    operator = subrow.operator("mocam.object_name_from_text", text = "", icon = "FONT_DATA")
+                    operator.index = target.index
                 subrow.prop(target.object, "name", text = "")
             else:
                 operator = row.operator("mocam.goto_index", text = target.object.name)
@@ -267,7 +270,7 @@ class NewActiveCamera(bpy.types.Operator):
 class AddSelectedObjectsAsTargets(bpy.types.Operator):
     bl_idname = "mocam.add_targets"
     bl_label = "Add Targets"
-    bl_description = ""
+    bl_description = "Use selected objects as targets"
     bl_options = {"REGISTER"}
     
     @classmethod
@@ -286,7 +289,7 @@ class AddSelectedObjectsAsTargets(bpy.types.Operator):
 class GotoIndex(bpy.types.Operator):
     bl_idname = "mocam.goto_index"
     bl_label = "Goto Index"
-    bl_description = ""
+    bl_description = "Jump to this target"
     bl_options = {"REGISTER"}
     
     index = IntProperty(name = "Index", default = 0)
@@ -309,7 +312,7 @@ class GotoIndex(bpy.types.Operator):
 class RemoveTarget(bpy.types.Operator):
     bl_idname = "mocam.remove_target"
     bl_label = "Remove Target"
-    bl_description = ""
+    bl_description = "Remove this target"
     bl_options = {"REGISTER"}
     
     index = IntProperty(name = "Index", default = 0)
@@ -322,7 +325,37 @@ class RemoveTarget(bpy.types.Operator):
         mocam = get_selected_mocam()
         if mocam:
             mocam.remove_target_with_index(self.index)
-        return {"FINISHED"}            
+        return {"FINISHED"} 
+    
+    
+class ObjectNameFromText(bpy.types.Operator):
+    bl_idname = "mocam.object_name_from_text"
+    bl_label = "Object Name from Text"
+    bl_description = "Copy object name from text (press ctrl for all text objects)"
+    bl_options = {"REGISTER"}
+    
+    index = IntProperty(name = "Index", default = 0)
+    
+    @classmethod
+    def poll(cls, context):
+        return True
+    
+    def invoke(self, context, event):
+        mocam = get_selected_mocam()
+        if mocam:
+            objects = []
+            
+            if event.ctrl:
+                objects = [target.object for target in mocam.get_targets()]
+            else:
+                target = mocam.get_target_from_index(self.index)
+                if target:
+                    objects = [target.object]
+                
+            for object in objects:
+                if object.type == "FONT":
+                    object.name = object.data.body
+        return {"FINISHED"}               
                         
     
 # properties    
@@ -352,7 +385,7 @@ def get_camera_name_items(self, context):
     
 class MocamSceneProperties(bpy.types.PropertyGroup):
     selected_camera_name = EnumProperty(name = "Camera Name", items = get_camera_name_items)   
-    enable_renaming = BoolProperty(name = "Enable Renaming", default = False)
+    enable_renaming = BoolProperty(name = "Enable Renaming", default = False, description = "Enable renaming mode for all targets")
         
         
 def register():
