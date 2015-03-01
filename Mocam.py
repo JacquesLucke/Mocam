@@ -205,7 +205,8 @@ class AddSelectedObjectsAsTargets(bpy.types.Operator):
         if camera:
             mocam = Mocam(camera)
             for object in context.selected_objects:
-                mocam.add_target(object)
+                if object != camera:
+                    mocam.add_target(object)
         return {"FINISHED"}
                         
     
