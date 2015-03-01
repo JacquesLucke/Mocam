@@ -214,13 +214,14 @@ class MocamPanel(bpy.types.Panel):
         elif camera_amount >= 2:
             layout.prop(scene.mocam, "selected_camera_name", text = "Display")
         
-        camera = get_selected_camera()    
-        if not camera:
+        mocam = get_selected_mocam()    
+        if not mocam:
             return
         
-        mocam = Mocam(camera)
-        
         layout.prop(mocam.properties, "active", text = "Is Camera Active")
+        
+        if not mocam.active:
+            return
         
         targets = mocam.get_targets()
         col = layout.column(align = True)
