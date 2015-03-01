@@ -315,7 +315,7 @@ class GotoIndex(bpy.types.Operator):
     
     @classmethod
     def poll(cls, context):
-        return True
+        return context.mode == "OBJECT"
     
     def execute(self, context):
         mocam = get_selected_mocam()
@@ -338,7 +338,7 @@ class RemoveTarget(bpy.types.Operator):
     
     @classmethod
     def poll(cls, context):
-        return True
+        return context.mode == "OBJECT"
     
     def execute(self, context):
         mocam = get_selected_mocam()
@@ -357,7 +357,7 @@ class ObjectNameFromText(bpy.types.Operator):
     
     @classmethod
     def poll(cls, context):
-        return True
+        return context.mode == "OBJECT"
     
     def invoke(self, context, event):
         mocam = get_selected_mocam()
@@ -388,7 +388,7 @@ class MoveTarget(bpy.types.Operator):
     
     @classmethod
     def poll(cls, context):
-        return True
+        return context.mode == "OBJECT"
     
     def execute(self, context):
         mocam = get_selected_mocam()
