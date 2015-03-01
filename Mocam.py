@@ -204,11 +204,15 @@ class MocamPanel(bpy.types.Panel):
         col = layout.column(align = True)
         for target in targets:
             row = col.row(align = True)
-            row.label(str(target.index))
-            row.prop(target.object, "name", text = "")
+            if scene.mocam.enable_renaming:
+                row.prop(target.object, "name", text = "")
+            else:
+                row.label(target.object.name)
         
         if mocam.active:
             layout.operator("mocam.add_targets")
+            
+        layout.prop(scene.mocam, "enable_renaming")
             
      
 # operators     
@@ -277,6 +281,7 @@ def get_camera_name_items(self, context):
     
 class MocamSceneProperties(bpy.types.PropertyGroup):
     selected_camera_name = EnumProperty(name = "Camera Name", items = get_camera_name_items)   
+    enable_renaming = BoolProperty(name = "Enable Renaming", default = False)
         
         
 def register():
