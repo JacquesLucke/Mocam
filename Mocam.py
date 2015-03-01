@@ -26,8 +26,15 @@ Naming convention:
 
 
 import bpy
+import random
+from bpy.app.handlers import persistent
 from bpy.props import *
 from operator import attrgetter
+
+@persistent
+def correct_target_lists(scene):
+    for mocam in get_active_mocams():
+        mocam.correct_target_list()
 
 def get_selected_camera():
     cameras = get_cameras()
@@ -38,11 +45,8 @@ def get_selected_camera():
     scene = bpy.context.scene
     return scene.objects.get(scene.mocam.selected_camera_name)
 
-def is_camera_active(camera):
-    return camera.data.mocam.active
-def set_camera_active(camera):
-    camera.data.mocam.active = True
-
+def get_active_mocams():
+    return [Mocam(camera) for camera in get_cameras() if camera.data.mocam.active]
 def get_camera_names():
     return [camera.name for camera in get_cameras()]
 def get_cameras():
@@ -55,12 +59,41 @@ class Mocam:
         self.props = camera.data.mocam
         
     def add_target(self, object):
+        ObjectFinder.create_first_identifier(object)
+       
         item = self.props.targets.add()
-        item.index = 0
-        item.key = OPH.get_new_key(default_object = object)
+        item.index = len(self.props.targets)
+        item.object.object_name = object.name
+        item.object.identifier = object.mocam.identifier
+        ObjectFinder.correct_item_and_object(item.object)
         
     def get_targets(self):
         return TargetList(self.props.targets)
+    
+    def correct_target_list(self):
+        target_list = TargetList(self.props.targets)
+        self.correct_target_objects()
+        self.remove_targets_without_object()
+        self.set_correct_indices()
+        
+    def correct_target_objects(self):
+        for target in self.props.targets:
+            ObjectFinder.correct_item_and_object(target.object)
+        
+    def remove_targets_without_object(self):
+        remove_indices = []
+        for i, item in enumerate(self.props.targets):
+            target = Target(item)
+            if not target.object:
+                remove_indices.append(i - len(remove_indices))
+        for index in remove_indices:
+            self.props.targets.remove(index)
+            
+    def set_correct_indices(self):
+        items = list(self.props.targets)
+        items.sort(key = attrgetter("index"))
+        for i, item in enumerate(items):
+            item.index = i
         
     @property
     def active(self):
@@ -73,6 +106,49 @@ class Mocam:
     def properties(self):
         return self.props
     
+    
+class ObjectFinder:    
+    @classmethod
+    def get_object(cls, item):
+        object = cls.get_object_by_name(item.object_name)
+        if object:
+            return object
+        objects = cls.get_objects_with_identifier(item.identifier)
+        if len(objects) > 0:
+            return objects[0]
+    
+    @classmethod    
+    def correct_item_and_object(cls, item):
+        objects = cls.get_objects_with_identifier(item.identifier)
+        amount = len(objects)
+        if amount == 0:
+            item.object_name = ""
+            item.identifier = -1
+        elif amount == 1:
+            item.object_name = objects[0].name
+            item.identifier = objects[0].mocam.identifier
+        else:
+            objects_with_wrong_name = [object for object in objects if object.name != item.object_name]
+            if len(objects) == len(objects_with_wrong_name):
+                item.object_name = objects[0].name
+                objects_with_wrong_name = objects_with_wrong_name[1:]
+            for object in objects_with_wrong_name:
+                cls.set_new_identifier(object)
+    
+    @classmethod
+    def create_first_identifier(cls, object):
+        if object.mocam.identifier == 0:
+            cls.set_new_identifier(object) 
+    @classmethod
+    def set_new_identifier(cls, object):
+        object.mocam.identifier = round(random.random() * 1000000)
+        
+    @classmethod
+    def get_object_by_name(cls, name):
+        return bpy.data.objects.get(name)
+    @classmethod
+    def get_objects_with_identifier(cls, identifier):
+        return [object for object in bpy.data.objects if object.mocam.identifier == identifier]
     
 class TargetList:
     def __init__(self, target_items):
@@ -92,47 +168,9 @@ class TargetList:
     
 class Target:
     def __init__(self, target_item):
-        self.object = OPH.get_object(target_item.key)
+        self.object = ObjectFinder.get_object(target_item.object)
         self.index = target_item.index    
 
-
-class ObjectPropertyHelper:
-    helper_object_name = "Mocam Helper"
-    
-    def get_new_key(self, name = "key", default_object = None):
-        object = self.get_helper_object()
-        constraint = object.constraints.new(type = "CHILD_OF")
-        constraint.influence = 0
-        constraint.target = default_object
-        return constraint.name
-    
-    def set_object(self, key, object):
-        helper_object = self.get_helper_object()
-        constraint = helper_object.constraints.get(key)
-        if constraint is None:
-            self.get_new_key(name = key)
-            constraint = helper_object.constraints.get(key)
-        constraint.target = object
-    
-    def get_object(self, key):
-        object = self.get_helper_object()
-        constraint = object.constraints.get(key)
-        if constraint is None:
-            return None
-        return constraint.target
-        
-    def get_helper_object(self):
-        object = bpy.data.objects.get(self.helper_object_name)
-        if not object:
-            object = self.create_helper_object()
-        return object
-    
-    def create_helper_object(self):
-        object = bpy.data.objects.new(self.helper_object_name, None)
-        bpy.context.scene.objects.link(object)
-        object.hide = True
-        return object
-OPH = ObjectPropertyHelper()    
 
 
 class MocamPanel(bpy.types.Panel):
@@ -166,7 +204,8 @@ class MocamPanel(bpy.types.Panel):
         col = layout.column(align = True)
         for target in targets:
             row = col.row(align = True)
-            row.label(target.object.name)
+            row.label(str(target.index))
+            row.prop(target.object, "name", text = "")
         
         if mocam.active:
             layout.operator("mocam.add_targets")
@@ -186,7 +225,8 @@ class NewActiveCamera(bpy.types.Operator):
     
     def execute(self, context):
         bpy.ops.object.camera_add()
-        set_camera_active(context.active_object)
+        mocam = Mocam(context.active_object)
+        mocam.active = True
         return {"FINISHED"}
                 
                 
@@ -211,14 +251,21 @@ class AddSelectedObjectsAsTargets(bpy.types.Operator):
                         
     
 # properties    
+
+class ObjectFinderProperties(bpy.types.PropertyGroup):
+    object_name = StringProperty(name = "Object Name", default = "")
+    identifier = IntProperty(name = "Identifier", default = 0)
         
 class TargetProperties(bpy.types.PropertyGroup):
-    key = StringProperty(name = "Object Key", default = "")
+    object = PointerProperty(name = "Object", type = ObjectFinderProperties)
     index = IntProperty(name = "Index", default = 0)
     
 class MocamProperties(bpy.types.PropertyGroup):
     active = BoolProperty(name = "Active", default = False)
     targets = CollectionProperty(name = "Targets", type = TargetProperties)    
+    
+class MocamObjectProperties(bpy.types.PropertyGroup):
+    identifier = IntProperty(name = "Identifier", default = 0)      
     
     
 def get_camera_name_items(self, context):
@@ -235,7 +282,11 @@ class MocamSceneProperties(bpy.types.PropertyGroup):
 def register():
     bpy.utils.register_module(__name__)
     bpy.types.Camera.mocam = PointerProperty(name = "Mocam", type = MocamProperties)
+    bpy.types.Object.mocam = PointerProperty(name = "Mocam", type = MocamObjectProperties)
     bpy.types.Scene.mocam = PointerProperty(name = "Mocam", type = MocamSceneProperties)
+    
+    bpy.app.handlers.scene_update_post.clear()
+    bpy.app.handlers.scene_update_post.append(correct_target_lists)
 
 def unregister():
     bpy.utils.unregister_module(__name__)
