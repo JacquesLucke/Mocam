@@ -36,6 +36,11 @@ def correct_target_lists(scene):
     for mocam in get_active_mocams():
         mocam.correct_target_list()
 
+def get_selected_mocam():
+    camera = get_selected_camera()
+    if camera:
+        return Mocam(camera)
+    
 def get_selected_camera():
     cameras = get_cameras()
     if len(cameras) == 0:
@@ -94,6 +99,11 @@ class Mocam:
         items.sort(key = attrgetter("index"))
         for i, item in enumerate(items):
             item.index = i
+            
+    def get_target_from_index(self, index):
+        for item in self.props.targets:
+            if item.index == index:
+                return Target(item)
         
     @property
     def active(self):
@@ -207,7 +217,8 @@ class MocamPanel(bpy.types.Panel):
             if scene.mocam.enable_renaming:
                 row.prop(target.object, "name", text = "")
             else:
-                row.label(target.object.name)
+                operator = row.operator("mocam.goto_index", text = target.object.name)
+                operator.index = target.index
         
         if mocam.active:
             layout.operator("mocam.add_targets")
@@ -245,13 +256,36 @@ class AddSelectedObjectsAsTargets(bpy.types.Operator):
         return context.mode == "OBJECT"
     
     def execute(self, context):
-        camera = get_selected_camera()
-        if camera:
-            mocam = Mocam(camera)
+        mocam = get_selected_mocam()
+        if mocam:
             for object in context.selected_objects:
                 if object != camera:
                     mocam.add_target(object)
         return {"FINISHED"}
+    
+    
+class GotoIndex(bpy.types.Operator):
+    bl_idname = "mocam.goto_index"
+    bl_label = "Goto Index"
+    bl_description = ""
+    bl_options = {"REGISTER"}
+    
+    index = IntProperty(name = "Index", default = 0)
+    
+    @classmethod
+    def poll(cls, context):
+        return True
+    
+    def execute(self, context):
+        mocam = get_selected_mocam()
+        if mocam:
+            target = mocam.get_target_from_index(self.index)
+            if target:
+                bpy.ops.object.select_all(action = "DESELECT")
+                target.object.select = True
+                context.scene.objects.active = target.object
+        return {"FINISHED"}
+            
                         
     
 # properties    
