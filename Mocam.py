@@ -101,9 +101,14 @@ class Mocam:
             item.index = i
             
     def get_target_from_index(self, index):
+        item = self.get_target_item_from_index(index)
+        if item:
+            return Target(item)
+            
+    def get_target_item_from_index(self, index):
         for item in self.props.targets:
             if item.index == index:
-                return Target(item)
+                return item
             
     def remove_target_with_index(self, index):
         prop_index = -1
@@ -113,6 +118,13 @@ class Mocam:
                 break
         self.props.targets.remove(prop_index)
         self.set_correct_indices()
+        
+    def change_indices(self, index_a, index_b):
+        item_a = self.get_target_item_from_index(index_a)
+        item_b = self.get_target_item_from_index(index_b)
+        if item_a and item_b:
+            item_a.index = index_b
+            item_b.index = index_a
         
     @property
     def active(self):
@@ -236,14 +248,21 @@ class MocamPanel(bpy.types.Panel):
                     operator.index = target.index
                 subrow.prop(target.object, "name", text = "")
             else:
+                operator = row.operator("mocam.move_target", text = "", icon = "TRIA_UP")
+                operator.index_from = target.index
+                operator.index_to = max(target.index - 1, 0)
+                
+                operator = row.operator("mocam.move_target", text = "", icon = "TRIA_DOWN")
+                operator.index_from = target.index
+                operator.index_to = min(target.index + 1, len(targets) - 1)
+                    
                 operator = row.operator("mocam.goto_index", text = target.object.name)
                 operator.index = target.index
                 
-            operator = row.operator("mocam.remove_target", text = "", icon = "X")
-            operator.index = target.index
+                operator = row.operator("mocam.remove_target", text = "", icon = "X")
+                operator.index = target.index
         
-        if mocam.active:
-            layout.operator("mocam.add_targets", text = "Add Targets from Selection", icon = "PLUS")
+        layout.operator("mocam.add_targets", text = "Add Targets from Selection", icon = "PLUS")
             
         layout.prop(scene.mocam, "enable_renaming")
             
@@ -280,7 +299,7 @@ class AddSelectedObjectsAsTargets(bpy.types.Operator):
     def execute(self, context):
         mocam = get_selected_mocam()
         if mocam:
-            for object in context.selected_objects:
+            for object in reversed(context.selected_objects):
                 if object != mocam.camera:
                     mocam.add_target(object)
         return {"FINISHED"}
@@ -355,7 +374,28 @@ class ObjectNameFromText(bpy.types.Operator):
             for object in objects:
                 if object.type == "FONT":
                     object.name = object.data.body
-        return {"FINISHED"}               
+        return {"FINISHED"}      
+    
+    
+class MoveTarget(bpy.types.Operator):
+    bl_idname = "mocam.move_target"
+    bl_label = "Move Target"
+    bl_description = "Move this Target"
+    bl_options = {"REGISTER"}
+    
+    index_from = IntProperty(name = "Index From", default = 0)
+    index_to = IntProperty(name = "Index To", default = 0)
+    
+    @classmethod
+    def poll(cls, context):
+        return True
+    
+    def execute(self, context):
+        mocam = get_selected_mocam()
+        if mocam:
+            mocam.change_indices(self.index_from, self.index_to)
+        return {"FINISHED"}
+                     
                         
     
 # properties    
