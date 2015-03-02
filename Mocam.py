@@ -244,7 +244,9 @@ class MocamPanel(bpy.types.Panel):
                 operator.index = target.index
                 row.prop(target.object, "name", text = "")
                 if target.object.type == "FONT":
-                    operator = row.operator("mocam.object_name_and_text_conversion", text = "", icon = "FONT_DATA")
+                    operator = row.operator("mocam.object_name_to_text", text = "", icon = "OUTLINER_DATA_FONT")
+                    operator.index = target.index
+                    operator = row.operator("mocam.object_text_to_name", text = "", icon = "OUTLINER_OB_FONT")
                     operator.index = target.index
             else:
                 operator = row.operator("mocam.move_target", text = "", icon = "TRIA_UP")
@@ -347,10 +349,10 @@ class RemoveTarget(bpy.types.Operator):
         return {"FINISHED"} 
     
     
-class ObjectNameAndTextConversion(bpy.types.Operator):
-    bl_idname = "mocam.object_name_and_text_conversion"
-    bl_label = "Object Name from Text"
-    bl_description = "Copy object name from text (press ctrl for all text objects|press alt for name to text)"
+class ObjectNameToText(bpy.types.Operator):
+    bl_idname = "mocam.object_name_to_text"
+    bl_label = "Object Name to Text"
+    bl_description = "Use the name as text (press ctrl for all text objects)"
     bl_options = {"REGISTER"}
     
     index = IntProperty(name = "Index", default = 0)
@@ -371,15 +373,40 @@ class ObjectNameAndTextConversion(bpy.types.Operator):
                 if target:
                     objects = [target.object]
             
-            if event.alt: 
-                for object in objects:
-                    if object.type == "FONT":
-                        object.data.body = object.name
-            else:  
-                for object in objects:
-                    if object.type == "FONT":
-                        object.name = object.data.body
+            for object in objects:
+                if object.type == "FONT":
+                    object.data.body = object.name
         return {"FINISHED"}      
+    
+    
+class ObjectNameToText(bpy.types.Operator):
+    bl_idname = "mocam.object_text_to_name"
+    bl_label = "Text to Object Name"
+    bl_description = "Use the text as name (press ctrl for all text objects)"
+    bl_options = {"REGISTER"}
+    
+    index = IntProperty(name = "Index", default = 0)
+    
+    @classmethod
+    def poll(cls, context):
+        return True
+    
+    def invoke(self, context, event):
+        mocam = get_selected_mocam()
+        if mocam:
+            objects = []
+            
+            if event.ctrl:
+                objects = [target.object for target in mocam.get_targets()]
+            else:
+                target = mocam.get_target_from_index(self.index)
+                if target:
+                    objects = [target.object]
+            
+            for object in objects:
+                if object.type == "FONT":
+                    object.name = object.data.body
+        return {"FINISHED"}     
     
     
 class MoveTarget(bpy.types.Operator):
