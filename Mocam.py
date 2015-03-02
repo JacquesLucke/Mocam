@@ -27,14 +27,17 @@ Naming convention:
 
 import bpy
 import random
+import math
 from bpy.app.handlers import persistent
 from bpy.props import *
 from operator import attrgetter
+from mathutils import Matrix, Vector
 
 @persistent
 def correct_target_lists(scene):
     for mocam in get_active_mocams():
         mocam.correct_target_list()
+        mocam.update(scene.frame_current_final)
 
 def get_selected_mocam():
     camera = get_selected_camera()
@@ -62,6 +65,15 @@ class Mocam:
     def __init__(self, camera):
         self.camera = camera
         self.props = camera.data.mocam
+        
+    def update(self, frame):
+        calculator = MocamCalculator(self)
+        result = calculator.calculate(frame)
+        self.set_calculation_result(result)
+        
+    def set_calculation_result(self, result):
+        self.camera.matrix_world = result.matrix_world
+        self.camera.data.dof_distance = result.focus_distance
         
     def add_target(self, object):
         ObjectFinder.create_first_identifier(object)
@@ -138,6 +150,45 @@ class Mocam:
         return self.props
     
     
+class MocamCalculator:
+    def __init__(self, mocam):
+        self.mocam = mocam
+        
+    def calculate(self, frame):
+        result = CalculationResult()
+        targets = self.mocam.get_targets()
+        
+        start_index = math.floor(frame / 30)
+        end_index = math.ceil(frame / 30)
+        if start_index == end_index:
+            end_index += 1
+        start_index = min(start_index, len(targets) - 1)
+        end_index = min(end_index, len(targets) - 1)
+        
+        transition = self.calc_transition_matrix(targets[start_index], targets[end_index], (frame % 30) / 30)
+        view = self.calc_target_view_matrix(targets[start_index], targets[end_index], (frame % 30) / 30)
+        
+        world = transition * view
+        
+        result.matrix_world = world
+        result.focus_distance = 5
+        return result
+    
+    def calc_transition_matrix(self, start_target, end_target, factor):
+        start_matrix = start_target.position_matrix
+        end_matrix = end_target.position_matrix
+        return start_matrix.lerp(end_matrix, factor)
+    
+    def calc_target_view_matrix(self, start_target, end_target, factor):
+        return Matrix.Translation(Vector((0, 0, 5)))
+        
+    
+class CalculationResult:
+    def __init__(self):
+        self.matrix_world = Matrix.Identity(4)
+        self.focus_distance = 1 
+    
+    
 class ObjectFinder:    
     @classmethod
     def get_object(cls, item):
@@ -203,7 +254,22 @@ class TargetList:
 class Target:
     def __init__(self, target_item):
         self.object = ObjectFinder.get_object(target_item.object)
-        self.index = target_item.index    
+        self.index = target_item.index
+        self.position = Matrix.Identity(4)
+        
+    @property
+    def position_matrix(self):
+        if self.position == Matrix.Identity(4):
+            self.position = self.get_object_matrix()
+        return self.position
+    
+    def get_object_matrix(self):
+        bound_center = self.calc_bounding_box_center()
+        return self.object.matrix_world * Matrix.Translation(bound_center)       
+    
+    def calc_bounding_box_center(self):
+        center = sum((Vector(b) for b in self.object.bound_box), Vector())
+        return center / 8   
 
 
 
