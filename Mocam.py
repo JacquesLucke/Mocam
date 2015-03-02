@@ -263,11 +263,16 @@ class MocamPanel(bpy.types.Panel):
                 operator = row.operator("mocam.remove_target", text = "", icon = "X")
                 operator.index = target.index
         
-        if mocam.active:
-            layout.operator("mocam.add_targets", text = "Add Targets from Selection", icon = "PLUS")
+        row = col.row(align = True)
+        row.operator("mocam.add_targets", text = "From Selection", icon = "PLUS")
+        
+        try:
+            if len(context.active_object.data.body.split("\n")) >= 2:
+                row = col.row(align = True)
+                row.operator("mocam.separate_text_and_add_targets", text = "From Text Lines", icon = "PLUS")
+        except: pass
             
         layout.prop(scene.mocam, "enable_renaming")
-        layout.operator("mocam.separate_text_lines")
             
      
 # operators     
@@ -429,6 +434,23 @@ class MoveTarget(bpy.types.Operator):
             mocam.change_indices(self.index_from, self.index_to)
         return {"FINISHED"}
                      
+                     
+class SeparateTextAndAddTargets(bpy.types.Operator):
+    bl_idname = "mocam.separate_text_and_add_targets"
+    bl_label = "Separate Text and Add Targets"
+    bl_description = ""
+    bl_options = {"REGISTER"}
+    
+    @classmethod
+    def poll(cls, context):
+        return context.mode == "OBJECT" and getattr(context.active_object, "type", "") == "FONT"
+    
+    def execute(self, context):
+        bpy.ops.mocam.separate_text_lines()
+        bpy.ops.mocam.add_targets()
+        return {"FINISHED"}
+                             
+                     
                         
 class SeparateTextLines(bpy.types.Operator):
     bl_idname = "mocam.separate_text_lines"
@@ -441,20 +463,20 @@ class SeparateTextLines(bpy.types.Operator):
         return context.mode == "OBJECT" and getattr(context.active_object, "type", "") == "FONT"
     
     def execute(self, context):
+        bpy.ops.object.select_all(action = "DESELECT")
         object = context.active_object
         lines = object.data.body.split("\n")
         if len(lines) > 1:
             for i, line in enumerate(lines):
-                self.new_text_object(context, line, i)
+                text_data = object.data.copy()
+                text_data.body = line
+                text_object = bpy.data.objects.new(name = line, object_data = text_data)
+                text_object.location = [0, -i, 0]
+                text_object.select = True
+                context.scene.objects.link(text_object)
             context.scene.objects.unlink(object)
         return {"FINISHED"}
     
-    def new_text_object(self, context, text, index):
-        text_data = bpy.data.curves.new(name = text, type = "FONT")
-        text_data.body = text
-        text_object = bpy.data.objects.new(name = text, object_data = text_data)
-        text_object.location = [0, -index, 0]
-        context.scene.objects.link(text_object)
                                
                         
     
