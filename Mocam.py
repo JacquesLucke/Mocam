@@ -352,7 +352,7 @@ class RemoveTarget(bpy.types.Operator):
 class ObjectNameToText(bpy.types.Operator):
     bl_idname = "mocam.object_name_to_text"
     bl_label = "Object Name to Text"
-    bl_description = "Use the name as text (press ctrl for all text objects)"
+    bl_description = "Use the name as text (hold ctrl/alt/shift for all text objects)"
     bl_options = {"REGISTER"}
     
     index = IntProperty(name = "Index", default = 0)
@@ -366,7 +366,7 @@ class ObjectNameToText(bpy.types.Operator):
         if mocam:
             objects = []
             
-            if event.ctrl:
+            if event.ctrl or event.alt or event.shift:
                 objects = [target.object for target in mocam.get_targets()]
             else:
                 target = mocam.get_target_from_index(self.index)
@@ -382,7 +382,7 @@ class ObjectNameToText(bpy.types.Operator):
 class ObjectNameToText(bpy.types.Operator):
     bl_idname = "mocam.object_text_to_name"
     bl_label = "Text to Object Name"
-    bl_description = "Use the text as name (press ctrl for all text objects)"
+    bl_description = "Use the text as name (hold ctrl/alt/shift for all text objects)"
     bl_options = {"REGISTER"}
     
     index = IntProperty(name = "Index", default = 0)
@@ -396,7 +396,7 @@ class ObjectNameToText(bpy.types.Operator):
         if mocam:
             objects = []
             
-            if event.ctrl:
+            if event.ctrl or event.alt or event.shift:
                 objects = [target.object for target in mocam.get_targets()]
             else:
                 target = mocam.get_target_from_index(self.index)
