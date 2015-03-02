@@ -240,13 +240,12 @@ class MocamPanel(bpy.types.Panel):
         for target in targets:
             row = col.row(align = True)
             if scene.mocam.enable_renaming:
-                subrow = row.row(align = True)
-                operator = subrow.operator("mocam.goto_index", text = "", icon = "EYEDROPPER")
+                operator = row.operator("mocam.goto_index", text = "", icon = "EYEDROPPER")
                 operator.index = target.index
+                row.prop(target.object, "name", text = "")
                 if target.object.type == "FONT":
-                    operator = subrow.operator("mocam.object_name_from_text", text = "", icon = "FONT_DATA")
+                    operator = row.operator("mocam.object_name_and_text_conversion", text = "", icon = "FONT_DATA")
                     operator.index = target.index
-                subrow.prop(target.object, "name", text = "")
             else:
                 operator = row.operator("mocam.move_target", text = "", icon = "TRIA_UP")
                 operator.index_from = target.index
@@ -258,11 +257,12 @@ class MocamPanel(bpy.types.Panel):
                     
                 operator = row.operator("mocam.goto_index", text = target.object.name)
                 operator.index = target.index
-                
+                    
                 operator = row.operator("mocam.remove_target", text = "", icon = "X")
                 operator.index = target.index
         
-        layout.operator("mocam.add_targets", text = "Add Targets from Selection", icon = "PLUS")
+        if mocam.active:
+            layout.operator("mocam.add_targets", text = "Add Targets from Selection", icon = "PLUS")
             
         layout.prop(scene.mocam, "enable_renaming")
             
@@ -299,7 +299,7 @@ class AddSelectedObjectsAsTargets(bpy.types.Operator):
     def execute(self, context):
         mocam = get_selected_mocam()
         if mocam:
-            for object in reversed(context.selected_objects):
+            for object in context.selected_objects:
                 if object != mocam.camera:
                     mocam.add_target(object)
         return {"FINISHED"}
@@ -315,7 +315,7 @@ class GotoIndex(bpy.types.Operator):
     
     @classmethod
     def poll(cls, context):
-        return context.mode == "OBJECT"
+        return True
     
     def execute(self, context):
         mocam = get_selected_mocam()
@@ -338,7 +338,7 @@ class RemoveTarget(bpy.types.Operator):
     
     @classmethod
     def poll(cls, context):
-        return context.mode == "OBJECT"
+        return True
     
     def execute(self, context):
         mocam = get_selected_mocam()
@@ -347,17 +347,17 @@ class RemoveTarget(bpy.types.Operator):
         return {"FINISHED"} 
     
     
-class ObjectNameFromText(bpy.types.Operator):
-    bl_idname = "mocam.object_name_from_text"
+class ObjectNameAndTextConversion(bpy.types.Operator):
+    bl_idname = "mocam.object_name_and_text_conversion"
     bl_label = "Object Name from Text"
-    bl_description = "Copy object name from text (press ctrl for all text objects)"
+    bl_description = "Copy object name from text (press ctrl for all text objects|press alt for name to text)"
     bl_options = {"REGISTER"}
     
     index = IntProperty(name = "Index", default = 0)
     
     @classmethod
     def poll(cls, context):
-        return context.mode == "OBJECT"
+        return True
     
     def invoke(self, context, event):
         mocam = get_selected_mocam()
@@ -370,10 +370,15 @@ class ObjectNameFromText(bpy.types.Operator):
                 target = mocam.get_target_from_index(self.index)
                 if target:
                     objects = [target.object]
-                
-            for object in objects:
-                if object.type == "FONT":
-                    object.name = object.data.body
+            
+            if event.alt: 
+                for object in objects:
+                    if object.type == "FONT":
+                        object.data.body = object.name
+            else:  
+                for object in objects:
+                    if object.type == "FONT":
+                        object.name = object.data.body
         return {"FINISHED"}      
     
     
@@ -388,7 +393,7 @@ class MoveTarget(bpy.types.Operator):
     
     @classmethod
     def poll(cls, context):
-        return context.mode == "OBJECT"
+        return True
     
     def execute(self, context):
         mocam = get_selected_mocam()
