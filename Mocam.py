@@ -267,6 +267,7 @@ class MocamPanel(bpy.types.Panel):
             layout.operator("mocam.add_targets", text = "Add Targets from Selection", icon = "PLUS")
             
         layout.prop(scene.mocam, "enable_renaming")
+        layout.operator("mocam.separate_text_lines")
             
      
 # operators     
@@ -420,7 +421,7 @@ class MoveTarget(bpy.types.Operator):
     
     @classmethod
     def poll(cls, context):
-        return True
+        return context.mode == "OBJECT"
     
     def execute(self, context):
         mocam = get_selected_mocam()
@@ -428,6 +429,33 @@ class MoveTarget(bpy.types.Operator):
             mocam.change_indices(self.index_from, self.index_to)
         return {"FINISHED"}
                      
+                        
+class SeparateTextLines(bpy.types.Operator):
+    bl_idname = "mocam.separate_text_lines"
+    bl_label = "Separate Text Lines"
+    bl_description = "Create a text object for each line in the active object"
+    bl_options = {"REGISTER"}
+    
+    @classmethod
+    def poll(cls, context):
+        return context.mode == "OBJECT" and getattr(context.active_object, "type", "") == "FONT"
+    
+    def execute(self, context):
+        object = context.active_object
+        lines = object.data.body.split("\n")
+        if len(lines) > 1:
+            for i, line in enumerate(lines):
+                self.new_text_object(context, line, i)
+            context.scene.objects.unlink(object)
+        return {"FINISHED"}
+    
+    def new_text_object(self, context, text, index):
+        text_data = bpy.data.curves.new(name = text, type = "FONT")
+        text_data.body = text
+        text_object = bpy.data.objects.new(name = text, object_data = text_data)
+        text_object.location = [0, -index, 0]
+        context.scene.objects.link(text_object)
+                               
                         
     
 # properties    
