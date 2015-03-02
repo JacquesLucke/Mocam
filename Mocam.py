@@ -157,6 +157,9 @@ class MocamCalculator:
     def calculate(self, frame):
         result = CalculationResult()
         targets = self.mocam.get_targets()
+        target_amount = len(targets)
+        if target_amount == 0:
+            return result
         
         start_index = math.floor(frame / 30)
         end_index = math.ceil(frame / 30)
