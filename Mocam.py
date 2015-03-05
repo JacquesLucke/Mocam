@@ -177,7 +177,9 @@ class Mocam:
             move_data.move = move
             move_data.frame_in_move = frame - (frame_counter - move.load - move.stay)
             move_data.target_start = self.get_target_from_index(index - 1)
-            move_data.target_end = self.get_target_from_index(index)      
+            move_data.target_end = self.get_target_from_index(index) 
+            if move_data.target_end is None:
+                move_data.target_end = self.last_target  
         return move_data
     
     def get_start_frame_of_index(self, index):
@@ -186,6 +188,10 @@ class Mocam:
             move = self.get_move_item(i)
             frame_counter += move.load + move.stay
         return frame_counter
+    
+    @property
+    def last_target(self):
+        return self.get_target_from_index(len(self.props.targets)-1)
         
     @property
     def active(self):
@@ -686,9 +692,8 @@ class MocamPanel(bpy.types.Panel):
                 operator.index = target.index
                 row.prop(target.object, "name", text = "")
                 if target.object.type == "FONT":
-                    print(row.operator("mocam.object_name_to_text", text = "", icon = "OUTLINER_DATA_FONT"))
-                    #operator = row.operator("mocam.object_name_to_text", text = "", icon = "OUTLINER_DATA_FONT")
-                    #operator.index = target.index
+                    operator = row.operator("mocam.object_name_to_text", text = "", icon = "OUTLINER_DATA_FONT")
+                    operator.index = target.index
                     operator = row.operator("mocam.object_text_to_name", text = "", icon = "OUTLINER_OB_FONT")
                     operator.index = target.index
             else:
