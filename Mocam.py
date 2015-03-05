@@ -137,6 +137,16 @@ class Mocam:
         if item_a and item_b:
             item_a.index = index_b
             item_b.index = index_a
+            
+    def get_move_item(self, index):
+        self.create_missing_move_items(index + 1)
+        return self.props.moves[index]
+                
+    def create_missing_move_items(self, amount):
+        move_items = self.props.moves
+        missing_items_amount = max(amount - len(move_items), 0)
+        for i in range(missing_items_amount):
+            move_items.add()
         
     @property
     def active(self):
@@ -559,9 +569,14 @@ class TargetProperties(bpy.types.PropertyGroup):
     object = PointerProperty(name = "Object", type = ObjectFinderProperties)
     index = IntProperty(name = "Index", default = 0)
     
+class MoveProperties(bpy.types.PropertyGroup):
+    load = FloatProperty(name = "Load Time", default = 15.0, description = "Time to move from last to this target in frames")
+    stay = FloatProperty(name = "Stay Time", default = 10.0, description = "Time to stay at this targets in frames")
+    
 class MocamProperties(bpy.types.PropertyGroup):
     active = BoolProperty(name = "Active", default = False)
-    targets = CollectionProperty(name = "Targets", type = TargetProperties)    
+    targets = CollectionProperty(name = "Targets", type = TargetProperties)
+    moves = CollectionProperty(name = "Moves", type = MoveProperties)
     
 class MocamObjectProperties(bpy.types.PropertyGroup):
     identifier = IntProperty(name = "Identifier", default = 0)      
