@@ -167,6 +167,13 @@ class Mocam:
             move_data.target_start = self.get_target_from_index(index - 1)
             move_data.target_end = self.get_target_from_index(index)      
         return move_data
+    
+    def get_start_frame_of_index(self, index):
+        frame_counter = 0
+        for i in range(index + 1):
+            move = self.get_move_item(i)
+            frame_counter += move.load + move.stay
+        return frame_counter
         
     @property
     def active(self):
@@ -311,6 +318,7 @@ class ObjectFinder:
     @classmethod
     def get_objects_with_identifier(cls, identifier):
         return [object for object in bpy.data.objects if object.mocam.identifier == identifier]
+    
     
 class TargetList:
     def __init__(self, target_items):
@@ -512,7 +520,7 @@ class SelectAndGotoIndex(bpy.types.Operator):
             target = mocam.get_target_from_index(self.index)
             if target:
                 self.select_target(target)
-                self.jump_to_target(target)
+                self.jump_to_target(target, mocam)
                 
             if event.ctrl:
                 for target in mocam.get_targets():
@@ -524,8 +532,9 @@ class SelectAndGotoIndex(bpy.types.Operator):
         target.object.select = True
         bpy.context.scene.objects.active = target.object
         
-    def jump_to_target(self, target):
-        pass
+    def jump_to_target(self, target, mocam):
+        frame = mocam.get_start_frame_of_index(target.index)
+        bpy.context.scene.frame_current = frame
             
             
 class RemoveTarget(bpy.types.Operator):
