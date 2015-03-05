@@ -160,11 +160,12 @@ class Mocam:
             frame_counter += move.load + move.stay
             if frame_counter > frame:
                 break
-            
-        move_data.move = move
-        move_data.frame_in_move = frame - (frame_counter - move.load - move.stay)
-        move_data.target_start = self.get_target_from_index(index - 1)
-        move_data.target_end = self.get_target_from_index(index)      
+         
+        if move is not None:   
+            move_data.move = move
+            move_data.frame_in_move = frame - (frame_counter - move.load - move.stay)
+            move_data.target_start = self.get_target_from_index(index - 1)
+            move_data.target_end = self.get_target_from_index(index)      
         return move_data
         
     @property
