@@ -146,7 +146,9 @@ class Mocam:
         move_items = self.props.moves
         missing_items_amount = max(amount - len(move_items), 0)
         for i in range(missing_items_amount):
-            move_items.add()
+            item = move_items.add()
+            if len(move_items) == 1:
+                item.load = 0    
             
     def get_move_data(self, frame):
         self.create_missing_move_items(len(self.props.targets))
@@ -310,6 +312,21 @@ class TargetList:
         targets.sort(key = attrgetter("index"))
         return targets   
     
+    def contains_object(self, object):
+        for target in self.targets:
+            if target.object == object:
+                return True
+        return False
+    
+    def find_targets_with_objects(self, objects):
+        found_targets = []
+        for object in objects:
+            found_targets.extend(self.find_targets_with_object(object))
+        return found_targets
+    
+    def find_targets_with_object(self, object):
+        return [target for target in self.targets if target.object == object]
+    
     def __getitem__(self, key):
         return self.targets[key]
     
@@ -409,6 +426,18 @@ class MocamPanel(bpy.types.Panel):
         except: pass
             
         layout.prop(scene.mocam, "enable_renaming")
+        
+        selected_targets = targets.find_targets_with_objects(context.selected_objects)
+        
+        for target in selected_targets:
+            move_item = mocam.get_move_item(target.index)
+            box = layout.box()
+            col = box.column(align = True)
+            col.label(target.object.name)
+            if target.index > 0:
+                col.prop(move_item, "load")
+            if target.index < len(targets) - 1:
+                col.prop(move_item, "stay")
             
      
 # operators     
@@ -627,8 +656,8 @@ class TargetProperties(bpy.types.PropertyGroup):
     index = IntProperty(name = "Index", default = 0)
     
 class MoveProperties(bpy.types.PropertyGroup):
-    load = FloatProperty(name = "Load Time", default = 15.0, description = "Time to move from last to this target in frames")
-    stay = FloatProperty(name = "Stay Time", default = 10.0, description = "Time to stay at this targets in frames")
+    load = FloatProperty(name = "Load Time", default = 15.0, description = "Time to move from last to this target in frames", min = 0)
+    stay = FloatProperty(name = "Stay Time", default = 10.0, description = "Time to stay at this targets in frames", min = 0)
     
 class MocamProperties(bpy.types.PropertyGroup):
     active = BoolProperty(name = "Active", default = False)
