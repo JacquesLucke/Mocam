@@ -153,15 +153,18 @@ class Mocam:
     def get_move_data(self, frame):
         self.create_missing_move_items(len(self.props.targets))
         move_data = MoveData()
+        
         frame_counter = 0
+        move, index = None, -1
         for index, move in enumerate(self.props.moves):
             frame_counter += move.load + move.stay
             if frame_counter > frame:
                 break
+            
         move_data.move = move
         move_data.frame_in_move = frame - (frame_counter - move.load - move.stay)
         move_data.target_start = self.get_target_from_index(index - 1)
-        move_data.target_end = self.get_target_from_index(index)
+        move_data.target_end = self.get_target_from_index(index)      
         return move_data
         
     @property
