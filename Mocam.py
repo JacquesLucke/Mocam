@@ -21,8 +21,20 @@ Created by Jacques Lucke
 Naming convention:
     camera - the camera object, that means with properties like location, etc.
     camera_data - camera.data
-    mocam - camera.data.mocam
 '''
+
+
+bl_info =  {
+    "name": "Mocam",
+    "description": "Create professional looking camera animations for you motion graphics.",
+    "author": "Jacques Lucke",
+    "version": (0, 0, 1),
+    "blender": (2, 73, 0),
+    "location": "View3D",
+    "warning": "development",
+    "wiki_url": "",
+    "category": "Animation" }
+    
 
 
 import bpy
@@ -377,89 +389,7 @@ class Target:
     def calc_bounding_box_center(self):
         center = sum((Vector(b) for b in self.object.bound_box), Vector())
         return center / 8   
-
-
-
-class MocamPanel(bpy.types.Panel):
-    bl_idname = "MocamPanel"
-    bl_label = "Mocam"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "TOOLS"
-    bl_category = "Tools"
-    
-    def draw(self, context):
-        layout = self.layout
-        scene = context.scene
-        
-        cameras = get_cameras()
-        camera_amount = len(cameras)
-        
-        if camera_amount == 0:
-            layout.operator("mocam.new_active_camera", "New Mocam")
-        elif camera_amount >= 2:
-            layout.prop(scene.mocam, "selected_camera_name", text = "Display")
-        
-        mocam = get_selected_mocam()    
-        if not mocam:
-            return
-        
-        layout.prop(mocam.properties, "active", text = "Is Camera Active")
-        
-        if not mocam.active:
-            return
-        
-        targets = mocam.get_targets()
-        col = layout.column(align = True)
-        for target in targets:
-            row = col.row(align = True)
-            if scene.mocam.enable_renaming:
-                operator = row.operator("mocam.select_and_goto_index", text = "", icon = "EYEDROPPER")
-                operator.index = target.index
-                row.prop(target.object, "name", text = "")
-                if target.object.type == "FONT":
-                    operator = row.operator("mocam.object_name_to_text", text = "", icon = "OUTLINER_DATA_FONT")
-                    operator.index = target.index
-                    operator = row.operator("mocam.object_text_to_name", text = "", icon = "OUTLINER_OB_FONT")
-                    operator.index = target.index
-            else:
-                operator = row.operator("mocam.move_target", text = "", icon = "TRIA_UP")
-                operator.index_from = target.index
-                operator.index_to = max(target.index - 1, 0)
-                
-                operator = row.operator("mocam.move_target", text = "", icon = "TRIA_DOWN")
-                operator.index_from = target.index
-                operator.index_to = min(target.index + 1, len(targets) - 1)
-                    
-                operator = row.operator("mocam.select_and_goto_index", text = target.object.name)
-                operator.index = target.index
-                    
-                operator = row.operator("mocam.remove_target", text = "", icon = "X")
-                operator.index = target.index
-        
-        row = col.row(align = True)
-        row.operator("mocam.add_targets", text = "From Selection", icon = "PLUS")
-        
-        try:
-            if len(context.active_object.data.body.split("\n")) >= 2:
-                row = col.row(align = True)
-                row.operator("mocam.separate_text_and_add_targets", text = "From Text Lines", icon = "PLUS")
-        except: pass
-            
-        layout.prop(scene.mocam, "enable_renaming")
-        
-        selected_targets = targets.find_targets_with_objects(context.selected_objects)
-        selected_targets.sort(key = attrgetter("index"))
-        
-        for target in selected_targets:
-            move_item = mocam.get_move_item(target.index)
-            box = layout.box()
-            col = box.column(align = True)
-            col.label("\"" + target.object.name + "\"")
-            if target.index > 0:
-                col.prop(move_item, "load")
-            if target.index < len(targets) - 1:
-                col.prop(move_item, "stay")
-            
+           
      
 # operators     
         
@@ -701,9 +631,8 @@ class MocamProperties(bpy.types.PropertyGroup):
     moves = CollectionProperty(name = "Moves", type = MoveProperties)
     
 class MocamObjectProperties(bpy.types.PropertyGroup):
-    identifier = IntProperty(name = "Identifier", default = 0)      
-    
-    
+    identifier = IntProperty(name = "Identifier", default = 0)   
+        
 def get_camera_name_items(self, context):
     camera_names = get_camera_names()
     items = []
@@ -716,8 +645,95 @@ class MocamSceneProperties(bpy.types.PropertyGroup):
     enable_renaming = BoolProperty(name = "Enable Renaming", default = False, description = "Enable renaming mode for all targets")
         
         
+        
+        
+# panel
+
+class MocamPanel(bpy.types.Panel):
+    bl_idname = "MocamPanel"
+    bl_label = "Mocam"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "TOOLS"
+    bl_category = "Tools"
+    
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        
+        cameras = get_cameras()
+        camera_amount = len(cameras)
+        
+        if camera_amount == 0:
+            layout.operator("mocam.new_active_camera", "New Mocam")
+        elif camera_amount >= 2:
+            layout.prop(scene.mocam, "selected_camera_name", text = "Display")
+        
+        mocam = get_selected_mocam()    
+        if not mocam:
+            return
+        
+        layout.prop(mocam.properties, "active", text = "Is Camera Active")
+        
+        if not mocam.active:
+            return
+        
+        targets = mocam.get_targets()
+        col = layout.column(align = True)
+        for target in targets:
+            row = col.row(align = True)
+            if scene.mocam.enable_renaming:
+                operator = row.operator("mocam.select_and_goto_index", text = "", icon = "EYEDROPPER")
+                operator.index = target.index
+                row.prop(target.object, "name", text = "")
+                if target.object.type == "FONT":
+                    print(row.operator("mocam.object_name_to_text", text = "", icon = "OUTLINER_DATA_FONT"))
+                    #operator = row.operator("mocam.object_name_to_text", text = "", icon = "OUTLINER_DATA_FONT")
+                    #operator.index = target.index
+                    operator = row.operator("mocam.object_text_to_name", text = "", icon = "OUTLINER_OB_FONT")
+                    operator.index = target.index
+            else:
+                operator = row.operator("mocam.move_target", text = "", icon = "TRIA_UP")
+                operator.index_from = target.index
+                operator.index_to = max(target.index - 1, 0)
+                
+                operator = row.operator("mocam.move_target", text = "", icon = "TRIA_DOWN")
+                operator.index_from = target.index
+                operator.index_to = min(target.index + 1, len(targets) - 1)
+                    
+                operator = row.operator("mocam.select_and_goto_index", text = target.object.name)
+                operator.index = target.index
+                    
+                operator = row.operator("mocam.remove_target", text = "", icon = "X")
+                operator.index = target.index
+        
+        row = col.row(align = True)
+        row.operator("mocam.add_targets", text = "From Selection", icon = "PLUS")
+        
+        try:
+            if len(context.active_object.data.body.split("\n")) >= 2:
+                row = col.row(align = True)
+                row.operator("mocam.separate_text_and_add_targets", text = "From Text Lines", icon = "PLUS")
+        except: pass
+            
+        layout.prop(scene.mocam, "enable_renaming")
+        
+        selected_targets = targets.find_targets_with_objects(context.selected_objects)
+        selected_targets.sort(key = attrgetter("index"))
+        
+        for target in selected_targets:
+            move_item = mocam.get_move_item(target.index)
+            box = layout.box()
+            col = box.column(align = True)
+            col.label("\"" + target.object.name + "\"")
+            if target.index > 0:
+                col.prop(move_item, "load")
+            if target.index < len(targets) - 1:
+                col.prop(move_item, "stay")
+        
+        
 def register():
     bpy.utils.register_module(__name__)
+    
     bpy.types.Camera.mocam = PointerProperty(name = "Mocam", type = MocamProperties)
     bpy.types.Object.mocam = PointerProperty(name = "Mocam", type = MocamObjectProperties)
     bpy.types.Scene.mocam = PointerProperty(name = "Mocam", type = MocamSceneProperties)
