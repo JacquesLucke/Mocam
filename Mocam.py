@@ -196,6 +196,10 @@ class MoveData:
         return self.target_start is None and self.target_end is not None
     
     @property
+    def is_last_target(self):
+        return self.target_start is not None and self.target_end is None
+    
+    @property
     def has_both_targets(self):
         return self.target_start is not None and self.target_end is not None
     
@@ -225,11 +229,15 @@ class MocamCalculator:
         transition = Matrix.Identity(4)
         view = Matrix.Identity(4)
         
-        if move_data.is_first_target:
+        if move_data.has_no_targets:
+            pass
+        elif move_data.is_first_target:
             transition = move_data.target_end.position_matrix
             view = move_data.target_end.view_matrix
-            
-        if move_data.has_both_targets:
+        elif move_data.is_last_target:
+            transition = move_data.target_start.position_matrix
+            view = move_data.target_start.view_matrix           
+        elif move_data.has_both_targets:
             start = move_data.target_start
             end = move_data.target_end
             
@@ -397,7 +405,7 @@ class MocamPanel(bpy.types.Panel):
         for target in targets:
             row = col.row(align = True)
             if scene.mocam.enable_renaming:
-                operator = row.operator("mocam.goto_index", text = "", icon = "EYEDROPPER")
+                operator = row.operator("mocam.select_and_goto_index", text = "", icon = "EYEDROPPER")
                 operator.index = target.index
                 row.prop(target.object, "name", text = "")
                 if target.object.type == "FONT":
@@ -414,7 +422,7 @@ class MocamPanel(bpy.types.Panel):
                 operator.index_from = target.index
                 operator.index_to = min(target.index + 1, len(targets) - 1)
                     
-                operator = row.operator("mocam.goto_index", text = target.object.name)
+                operator = row.operator("mocam.select_and_goto_index", text = target.object.name)
                 operator.index = target.index
                     
                 operator = row.operator("mocam.remove_target", text = "", icon = "X")
@@ -432,12 +440,13 @@ class MocamPanel(bpy.types.Panel):
         layout.prop(scene.mocam, "enable_renaming")
         
         selected_targets = targets.find_targets_with_objects(context.selected_objects)
+        selected_targets.sort(key = attrgetter("index"))
         
         for target in selected_targets:
             move_item = mocam.get_move_item(target.index)
             box = layout.box()
             col = box.column(align = True)
-            col.label(target.object.name)
+            col.label("\"" + target.object.name + "\"")
             if target.index > 0:
                 col.prop(move_item, "load")
             if target.index < len(targets) - 1:
@@ -482,10 +491,10 @@ class AddSelectedObjectsAsTargets(bpy.types.Operator):
         return {"FINISHED"}
     
     
-class GotoIndex(bpy.types.Operator):
-    bl_idname = "mocam.goto_index"
-    bl_label = "Goto Index"
-    bl_description = "Jump to this target"
+class SelectAndGotoIndex(bpy.types.Operator):
+    bl_idname = "mocam.select_and_goto_index"
+    bl_label = "Select and Goto Index"
+    bl_description = "Jump to this target (ctrl/shift to select all/more)"
     bl_options = {"REGISTER"}
     
     index = IntProperty(name = "Index", default = 0)
@@ -494,15 +503,29 @@ class GotoIndex(bpy.types.Operator):
     def poll(cls, context):
         return True
     
-    def execute(self, context):
+    def invoke(self, context, event):
         mocam = get_selected_mocam()
         if mocam:
+            if not event.shift:
+                bpy.ops.object.select_all(action = "DESELECT")
+            
             target = mocam.get_target_from_index(self.index)
             if target:
-                bpy.ops.object.select_all(action = "DESELECT")
-                target.object.select = True
-                context.scene.objects.active = target.object
+                self.select_target(target)
+                self.jump_to_target(target)
+                
+            if event.ctrl:
+                for target in mocam.get_targets():
+                    self.select_target(target)
+                   
         return {"FINISHED"}
+    
+    def select_target(self, target):
+        target.object.select = True
+        bpy.context.scene.objects.active = target.object
+        
+    def jump_to_target(self, target):
+        pass
             
             
 class RemoveTarget(bpy.types.Operator):
