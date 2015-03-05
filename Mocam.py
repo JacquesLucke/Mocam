@@ -147,6 +147,20 @@ class Mocam:
         missing_items_amount = max(amount - len(move_items), 0)
         for i in range(missing_items_amount):
             move_items.add()
+            
+    def get_move_data(self, frame):
+        self.create_missing_move_items(len(self.props.targets))
+        move_data = MoveData()
+        frame_counter = 0
+        for index, move in enumerate(self.props.moves):
+            frame_counter += move.load + move.stay
+            if frame_counter > frame:
+                break
+        move_data.move = move
+        move_data.frame_in_move = frame - (frame_counter - move.load - move.stay)
+        move_data.target_start = self.get_target_from_index(index - 1)
+        move_data.target_end = self.get_target_from_index(index)
+        return move_data
         
     @property
     def active(self):
@@ -160,30 +174,69 @@ class Mocam:
         return self.props
     
     
+class MoveData:
+    def __init__(self):
+        self.target_start = None
+        self.target_end = None
+        self.move = None
+        self.frame_in_move = 0
+        
+    @property
+    def has_no_targets(self):
+        return self.target_start is None and self.target_end is None
+    
+    @property
+    def is_first_target(self):
+        return self.target_start is None and self.target_end is not None
+    
+    @property
+    def has_both_targets(self):
+        return self.target_start is not None and self.target_end is not None
+    
+    @property
+    def is_moving(self):
+        if self.move:
+            return self.frame_in_move < self.move.load
+        return False
+    
+    @property
+    def move_progress(self):
+        progress = self.frame_in_move / self.move.load 
+        return min(max(progress, 0), 1)
+    
+    
 class MocamCalculator:
     def __init__(self, mocam):
         self.mocam = mocam
         
     def calculate(self, frame):
         result = CalculationResult()
-        targets = self.mocam.get_targets()
-        target_amount = len(targets)
-        if target_amount == 0:
+        move_data = self.mocam.get_move_data(frame)
+        
+        if move_data.has_no_targets:
             return result
         
-        start_index = math.floor(frame / 30)
-        end_index = math.ceil(frame / 30)
-        if start_index == end_index:
-            end_index += 1
-        start_index = min(start_index, len(targets) - 1)
-        end_index = min(end_index, len(targets) - 1)
+        transition = Matrix.Identity(4)
+        view = Matrix.Identity(4)
         
-        transition = self.calc_transition_matrix(targets[start_index], targets[end_index], (frame % 30) / 30)
-        view = self.calc_target_view_matrix(targets[start_index], targets[end_index], (frame % 30) / 30)
+        if move_data.is_first_target:
+            transition = move_data.target_end.position_matrix
+            view = move_data.target_end.view_matrix
+            
+        if move_data.has_both_targets:
+            start = move_data.target_start
+            end = move_data.target_end
+            
+            if move_data.is_moving:
+                move_progress = move_data.move_progress
+                transition = start.position_matrix.lerp(end.position_matrix, move_progress)
+                view = start.view_matrix.lerp(end.view_matrix, move_progress)
+            else:
+                transition = move_data.target_end.position_matrix
+                view = move_data.target_end.view_matrix
+       
         
-        world = transition * view
-        
-        result.matrix_world = world
+        result.matrix_world = transition * view
         result.focus_distance = 5
         return result
     
@@ -275,6 +328,10 @@ class Target:
         if self.position == Matrix.Identity(4):
             self.position = self.get_object_matrix()
         return self.position
+    
+    @property
+    def view_matrix(self):
+        return Matrix.Translation(Vector((0, 0, 5)))
     
     def get_object_matrix(self):
         bound_center = self.calc_bounding_box_center()
