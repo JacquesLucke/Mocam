@@ -46,7 +46,7 @@ from operator import attrgetter
 from mathutils import Matrix, Vector
 
 @persistent
-def correct_target_lists(scene):
+def update_mocams(scene):
     for mocam in get_active_mocams():
         mocam.correct_target_list()
         mocam.update(scene.frame_current_final)
@@ -744,7 +744,7 @@ def register():
     bpy.types.Scene.mocam = PointerProperty(name = "Mocam", type = MocamSceneProperties)
     
     bpy.app.handlers.scene_update_post.clear()
-    bpy.app.handlers.scene_update_post.append(correct_target_lists)
+    bpy.app.handlers.scene_update_post.append(update_mocams)
 
 def unregister():
     bpy.utils.unregister_module(__name__)
