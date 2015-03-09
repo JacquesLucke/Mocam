@@ -644,11 +644,15 @@ def get_camera_name_items(self, context):
     items = []
     for name in camera_names:
         items.append((name, name, ""))
-    return items          
+    return items
+
+class InterpolationProperties(bpy.types.PropertyGroup):
+    animation = FloatProperty(name = "Animation", default = 0.0)
     
 class MocamSceneProperties(bpy.types.PropertyGroup):
     selected_camera_name = EnumProperty(name = "Camera Name", items = get_camera_name_items)   
     enable_renaming = BoolProperty(name = "Enable Renaming", default = False, description = "Enable renaming mode for all targets")
+    interpolations = CollectionProperty(name = "Interpolations", type = InterpolationProperties)
         
         
         
